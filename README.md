@@ -100,6 +100,8 @@ kubectl -n argocd get secret argocd-initial-admin-secret   -o jsonpath="{.data.p
 - First create eks cluster with ebs csi driver add on and give role on add on
 - Create Eks clinet server and update the cluster 
 - give your account acces keey,seret key,git pat token,aws account id on your git hub repositry secrts and variables
+- crete rds in same vpc
+- pass rds values in backend app.py
 - install argocd cd and git ,mariadb onn eks server
 - initilize the database 
 - Clone the git repositry
