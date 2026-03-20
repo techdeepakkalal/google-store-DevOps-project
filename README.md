@@ -1,55 +1,61 @@
-# Kubernetes + + EKS-CTL
+# Kubernetes + EKS-CTL
 
-This README provides end-to-end steps for installing **eksctl**,
-**kubectl**, **Docker**, **Ingress-Nginx**, **MariaDB**, **ArgoCD**, and
-creating necessary namespaces and database tables.
+This README provides end-to-end steps for installing **eksctl**, **kubectl**, **Docker**, **Ingress-Nginx**, **MariaDB**, **ArgoCD**, and creating necessary namespaces and database tables.
 
-## Install eksctl
+---
 
-``` bash
+## Prerequisites
+
+- AWS Account with appropriate IAM permissions
+- Linux/Unix environment or WSL2 on Windows
+- Sufficient compute resources for EKS cluster
+
+---
+
+## Installation Steps
+
+### 1. Install eksctl
+
+```bash
 curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
 sudo mv /tmp/eksctl /usr/local/bin
 eksctl version
 ```
 
-## Create EKS Cluster
+### 2. Install kubectl
 
-``` bash
-eksctl create cluster --name google   --region ap-northeast-1   --node-type c7i-flex.large   --nodes-min 2   --nodes-max 2
-```
-
-## Install kubectl
-
-``` bash
+```bash
 curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
 chmod +x ./kubectl
 sudo mv ./kubectl /usr/local/bin/kubectl
 ```
 
-## Install Git
+### 3. Install Git
 
-``` bash
+```bash
 yum install git -y
 ```
 
-## Install Ingress-Nginx
+### 4. Install Ingress-Nginx
 
-``` bash
+```bash
 kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
 kubectl get pods -n ingress-nginx
 kubectl get svc -n ingress-nginx
 ```
 
-## Install MariaDB
+### 5. Install MariaDB
 
-``` bash
+```bash
 sudo yum update -y
 sudo dnf install -y mariadb105
 ```
 
-## MySQL Database Setup
+### 6. MySQL Database Setup
 
-``` sql
+Connect to MariaDB and execute the following SQL commands:
+
+```sql
 CREATE DATABASE IF NOT EXISTS cloud;
 USE cloud;
 DROP TABLE IF EXISTS users;
@@ -65,51 +71,167 @@ CREATE TABLE users (
 exit
 ```
 
-## Install ArgoCD
+### 7. Install ArgoCD
 
-``` bash
+```bash
 kubectl create namespace argocd
 kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
 kubectl get svc -n argocd
 ```
 
-## Create Namespace
+### 8. Create Application Namespace
 
-``` bash
+```bash
 kubectl create namespace google
 ```
 
-## Retrieve ArgoCD Password
+### 9. Retrieve ArgoCD Initial Admin Password
 
-``` bash
-kubectl -n argocd get secret argocd-initial-admin-secret   -o jsonpath="{.data.password}" | base64 -d
+```bash
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
 ```
 
-------------------------------------------------------------------------
+---
 
-# 📸 Architecture & Workflow Diagrams
-
-
+## 📸 Architecture & Workflow Diagrams
 
 ### Workflow Diagram
 
 ![Workflow Diagram](https://i.ibb.co/t9WR8c8/drawing.png)
 
-####################
-- First create eks cluster with ebs csi driver add on and give role on add on
-- Create Eks clinet server and update the cluster 
-- give your account acces keey,seret key,git pat token,aws account id on your git hub repositry secrts and variables
-- crete rds in same vpc
-- pass rds values in backend app.py
-- install argocd cd and git ,mariadb onn eks server
-- initilize the database 
-- Clone the git repositry
-- switch to k8s-argocd
-- First apply backend
-- Next copy the backend loadbalancer url and paste it on front end main folder index.htm    (line no 711 and 712)
+---
 
-- Next apply front end on K8s Argo  cd foldr
-- Next apply efk stack folder
-- Install grfana and promethous on cluster commnds given on repo grafana-prometheous
-- access the application with ingress lb url  
+## Deployment Workflow
+
+Follow these steps in order for successful deployment:
+
+### Step 1: EKS Cluster Setup with terraform
+- Create EKS cluster with **EBS CSI Driver add-on** enabled
+- Apply appropriate IAM roles to the add-on
+- Configure cluster access in kubeconfig
+
+### Step 2: EKS Client & Cluster Update
+- Create EKS client server
+- Update cluster configuration
+- Verify cluster connectivity using `kubectl get nodes`
+
+### Step 3: Configure GitHub Secrets
+Store the following secrets in your GitHub repository settings:
+- AWS Access Key ID
+- AWS Secret Access Key
+- AWS Account ID
+- Git PAT (Personal Access Token)
+
+### Step 4: RDS Database Setup
+- Create RDS instance in the same VPC as EKS cluster
+- Note the endpoint, username, and password
+- Update `backend/app.py` with RDS connection details
+
+### Step 5: Install Dependencies on EKS Server
+- Install ArgoCD
+- Install Git
+- Install MariaDB
+- Initialize the database (using SQL commands from Section 6 above)
+
+### Step 6: Clone Repository
+```bash
+git clone <your-repository-url>
+```
+
+### Step 7: Deploy Backend
+```bash
+cd k8s-argocd/backend
+kubectl apply -f .
+# Wait for Load Balancer to be assigned
+kubectl get svc -n google
+```
+
+### Step 8: Update Frontend Configuration
+- Copy the **Backend Load Balancer URL** from Step 7
+- Edit `frontend/main/index.html`
+- Update lines 711-712 with the backend URL:
+```html
+line 711: const API_ENDPOINT = "http://<BACKEND-LB-URL>";
+line 712: // Update all API calls to use this endpoint
+```
+
+### Step 9: Deploy Frontend
+```bash
+cd ../frontend
+kubectl apply -f .
+```
+
+### Step 10: Deploy EFK Stack (Elasticsearch, Fluent Bit, Kibana)
+```bash
+cd ../efk-stack
+kubectl apply -f .
+```
+
+### Step 11: Install Grafana & Prometheus
+```bash
+cd ../../grafana-prometheous
+# Follow installation commands in grafana-prometheous/README.md
+```
+
+### Step 12: Access the Application
+- Get the Ingress Load Balancer URL:
+```bash
+kubectl get ingress -n google
+```
+- Access the application using the Ingress Load Balancer URL in your browser
+
+---
+
+## Troubleshooting
+
+### Check Pod Status
+```bash
+kubectl get pods -n google
+kubectl describe pod <pod-name> -n google
+kubectl logs <pod-name> -n google
+```
+
+### Check Services and Load Balancers
+```bash
+kubectl get svc -n google
+kubectl get ingress -n google
+```
+
+### Verify ArgoCD Status
+```bash
+kubectl get all -n argocd
+```
+
+### Check EFK Stack Logs
+```bash
+kubectl get pods -n kube-logging
+kubectl logs <pod-name> -n kube-logging
+```
+
+---
+
+## Additional Resources
+
+- [eksctl Documentation](https://eksctl.io/)
+- [kubectl Cheat Sheet](https://kubernetes.io/docs/reference/kubectl/cheatsheet/)
+- [ArgoCD Documentation](https://argo-cd.readthedocs.io/)
+- [Kubernetes Documentation](https://kubernetes.io/docs/)
+
+---
+
+## Summary of Key Components
+
+| Component | Purpose |
+|-----------|---------|
+| **EKS** | Managed Kubernetes service on AWS |
+| **RDS** | Managed relational database (MySQL/MariaDB) |
+| **ArgoCD** | Continuous Deployment tool |
+| **Ingress-Nginx** | Ingress controller for routing |
+| **EFK Stack** | Logging and debugging (Elasticsearch, Fluent Bit, Kibana) |
+| **Grafana** | Metrics visualization |
+| **Prometheus** | Metrics collection and alerting |
+
+---
+
+**Last Updated:** March 2026
