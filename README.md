@@ -12,31 +12,98 @@ This README provides end-to-end steps for installing **eksctl**, **kubectl**, **
 
 ---
 
+
+
+## Deployment Workflow
+
+Follow these steps in order for successful deployment:
+
+### Step 1: EKS Cluster Setup with terraform
+- Create EKS 
+- Apply eks file  
+
+### Step 2: EKS Client & Cluster Update
+- Create EKS client server
+- Update cluster configuration
+- Verify cluster connectivity using `kubectl get nodes`
+
+### Step 3: Configure GitHub Secrets
+Store the following secrets in your GitHub repository settings:
+- AWS Access Key ID
+- AWS Secret Access Key
+- AWS Account ID
+- Git PAT (Personal Access Token)
+
+### Step 4: RDS Database Setup
+- Create RDS instance in the same VPC as EKS cluster
+- Note the endpoint, username, and password
+- Update `backend/app.py` with RDS connection details
+
+### Step 5: Install Dependencies on EKS Server
+- Install ArgoCD
+- Install Git
+- Install MariaDB
+- Initialize the database (using SQL commands from Section 6 above)
+- ks8 ingress controller 
+
+### Step 6: Clone Repository
+```bash
+git clone <your-repository-url>
+```
+
+### Step 7: Deploy Backend
+```bash
+cd k8s-argocd/backend
+kubectl apply -f .
+# Wait for Load Balancer to be assigned
+kubectl get svc -n google
+```
+
+### Step 8: Update Frontend Configuration
+- Copy the **Backend Load Balancer URL** from Step 7
+- Edit `frontend/main/index.html`
+- Update lines 711-712 with the backend URL:
+```html
+line 711: const API_ENDPOINT = "http://<BACKEND-LB-URL>";
+line 712: // Update all API calls to use this endpoint
+```
+
+### Step 9: Deploy Frontend
+```bash
+cd ../frontend
+kubectl apply -f .
+```
+
+### Step 10: Deploy EFK Stack (Elasticsearch, Fluent Bit, Kibana)
+```bash
+cd ../efk-stack
+kubectl apply -f .
+```
+
+### Step 11: Install Grafana & Prometheus
+```bash
+cd ../../grafana-prometheous
+# Follow installation commands in grafana-prometheous/README.md
+```
+
+### Step 12: Access the Application
+- Get the Ingress Load Balancer URL:
+```bash
+kubectl get ingress -n google
+```
+- Access the application using the Ingress Load Balancer URL in your browser
+
+---
 ## Installation Steps
 
-### 1. Install eksctl
 
-```bash
-curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
-sudo mv /tmp/eksctl /usr/local/bin
-eksctl version
-```
-
-### 2. Install kubectl
-
-```bash
-curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
-chmod +x ./kubectl
-sudo mv ./kubectl /usr/local/bin/kubectl
-```
-
-### 3. Install Git
+### 1. Install Git
 
 ```bash
 yum install git -y
 ```
 
-### 4. Install Ingress-Nginx
+### 2. Install Ingress-Nginx
 
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
@@ -44,7 +111,7 @@ kubectl get pods -n ingress-nginx
 kubectl get svc -n ingress-nginx
 ```
 
-### 5. Install MariaDB
+### 3. Install MariaDB
 
 ```bash
 sudo yum update -y
@@ -102,86 +169,6 @@ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.pas
 
 ---
 
-## Deployment Workflow
-
-Follow these steps in order for successful deployment:
-
-### Step 1: EKS Cluster Setup with terraform
-- Create EKS cluster with **EBS CSI Driver add-on** enabled
-- Apply appropriate IAM roles to the add-on
-- Configure cluster access in kubeconfig
-
-### Step 2: EKS Client & Cluster Update
-- Create EKS client server
-- Update cluster configuration
-- Verify cluster connectivity using `kubectl get nodes`
-
-### Step 3: Configure GitHub Secrets
-Store the following secrets in your GitHub repository settings:
-- AWS Access Key ID
-- AWS Secret Access Key
-- AWS Account ID
-- Git PAT (Personal Access Token)
-
-### Step 4: RDS Database Setup
-- Create RDS instance in the same VPC as EKS cluster
-- Note the endpoint, username, and password
-- Update `backend/app.py` with RDS connection details
-
-### Step 5: Install Dependencies on EKS Server
-- Install ArgoCD
-- Install Git
-- Install MariaDB
-- Initialize the database (using SQL commands from Section 6 above)
-
-### Step 6: Clone Repository
-```bash
-git clone <your-repository-url>
-```
-
-### Step 7: Deploy Backend
-```bash
-cd k8s-argocd/backend
-kubectl apply -f .
-# Wait for Load Balancer to be assigned
-kubectl get svc -n google
-```
-
-### Step 8: Update Frontend Configuration
-- Copy the **Backend Load Balancer URL** from Step 7
-- Edit `frontend/main/index.html`
-- Update lines 711-712 with the backend URL:
-```html
-line 711: const API_ENDPOINT = "http://<BACKEND-LB-URL>";
-line 712: // Update all API calls to use this endpoint
-```
-
-### Step 9: Deploy Frontend
-```bash
-cd ../frontend
-kubectl apply -f .
-```
-
-### Step 10: Deploy EFK Stack (Elasticsearch, Fluent Bit, Kibana)
-```bash
-cd ../efk-stack
-kubectl apply -f .
-```
-
-### Step 11: Install Grafana & Prometheus
-```bash
-cd ../../grafana-prometheous
-# Follow installation commands in grafana-prometheous/README.md
-```
-
-### Step 12: Access the Application
-- Get the Ingress Load Balancer URL:
-```bash
-kubectl get ingress -n google
-```
-- Access the application using the Ingress Load Balancer URL in your browser
-
----
 
 ## Troubleshooting
 
