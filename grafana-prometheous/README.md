@@ -19,7 +19,7 @@ kubectl patch svc stable-kube-prometheus-sta-prometheus \
 ##################
 kubectl patch svc stable-grafana \
 -n prometheus \
--p '{"spec":{"type":"loadBalancer"}}'
+-p '{"spec":{"type":"LoadBalancer"}}'
 
 ```
 # grafana pasword
